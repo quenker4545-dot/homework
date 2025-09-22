@@ -1,0 +1,21 @@
+import adafruit_dht
+import board
+import time
+from datetime import datetime
+
+dhtDevice = adafruit_dht.DHT22(board.D4)  # Update D4 with your GPIO pin
+
+try:
+    while True:
+        try:
+            temperature = dhtDevice.temperature
+            humidity = dhtDevice.humidity
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"{timestamp} | Temp: {temperature:.1f}C  Humidity: {humidity:.1f}%")
+        except Exception as e:
+            print("Error:", e)
+        time.sleep(1)  # Wait 1 second before next read
+except KeyboardInterrupt:
+    print("Shutting down sensor reading...")
+finally:
+    dhtDevice.exit()
