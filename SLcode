@@ -1,0 +1,94 @@
+import adafruit_dht
+import board
+import csv
+import time
+import os
+from datetime import datetime
+from git import Repo, GitCommandError
+
+# Paths
+csv_file = "dht22_data.csv"
+repo_dir = "/home/sam/dht22"
+
+# Init DHT22 on GPIO4
+dhtDevice = adafruit_dht.DHT22(board.D4)
+
+# Load Git repo
+try:
+    repo = Repo(repo_dir)
+    assert not repo.bare
+    origin = repo.remotes.origin
+    print("Git repo loaded successfully")
+except Exception as e:
+    print(f"Error loading repo: {e}")
+    repo = None
+
+def ensure_csv():
+    """Create CSV with header if missing"""
+    if not os.path.exists(csv_file) or os.path.getsize(csv_file) == 0:
+        with open(csv_file, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["timestamp", "temperature", "humidity"])
+        print("Created new CSV with header")
+
+def sync_and_push(message="Auto-update"):
+    """Simple force push strategy"""
+    if not repo:
+        print("Repo not initialized, skipping push")
+        return
+    
+    try:
+        # Stage and commit
+        repo.git.add(csv_file)
+        
+        if repo.is_dirty(untracked_files=True):
+            repo.index.commit(message)
+            print(f"Committed: {message}")
+        
+        # Force push (overwrites remote with local)
+        # WARNING: This will overwrite remote changes!
+        origin.push(force=True)
+        print("Pushed to GitHub (force)")
+        
+    except Exception as e:
+        print(f"Push error: {e}")
+
+def log_sensor_data():
+    """Read DHT22 every second, push every 30 seconds"""
+    ensure_csv()
+    last_push = time.time()
+    
+    while True:
+        try:
+            temperature = dhtDevice.temperature
+            humidity = dhtDevice.humidity
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            if humidity is not None and temperature is not None:
+                with open(csv_file, "a", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow([now, temperature, humidity])
+                print(f"{now} | Temp: {temperature:.1f}C | Humidity: {humidity:.1f}%")
+            else:
+                print("Sensor read failed")
+                
+        except RuntimeError as e:
+            print(f"DHT22 timeout: {e}")
+        except Exception as e:
+            print(f"Error: {e}")
+        
+        # Push every 30 sec
+        if time.time() - last_push >= 30:
+            sync_and_push(f"Data update {now}")
+            last_push = time.time()
+        
+        time.sleep(1)
+
+if __name__ == "__main__":
+    print("DHT22 Logger Starting...")
+    print("-" * 50)
+    try:
+        log_sensor_data()
+    except KeyboardInterrupt:
+        print("\nStopped by user")
+        dhtDevice.exit()
