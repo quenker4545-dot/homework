@@ -1,0 +1,8 @@
+streamlit
+pandas
+plotly
+requests
+prophet
+python-dateutil
+openmeteo_requests
+retry_requests
