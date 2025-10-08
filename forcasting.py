@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 import plotly.express as px
 from prophet import Prophet
-
+st.set_page_config(page_title="Weather Forecast Station", layout="wide")
 # ----------------------------------------
 # CONFIG
 # ----------------------------------------
